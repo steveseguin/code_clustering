@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Componentization & AI Dev System</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        h1, h2, h3 {
+            margin-top: 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .panel {
+            background: #f5f5f5;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .code-input {
+            width: 100%;
+            height: 300px;
+            font-family: monospace;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        button {
+            background: #0078d7;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #0063b1;
+        }
+        
+        .log-container {
+            background: #333;
+            color: #fff;
+            font-family: monospace;
+            padding: 10px;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+        }
+        
+        .log-success {
+            color: #4caf50;
+        }
+        
+        .log-error {
+            color: #f44336;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            background: #ddd;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        
+        .tab.active {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            position: relative;
+            margin-top: 10px;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: #0078d7;
+            border-radius: 4px;
+            transition: width 0.3s;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .progress-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #333;
+            font-weight: bold;
+            text-shadow: 0 0 2px white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Code Componentization & AI Dev System</h1>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="import">Import Code</div>
+            <div class="tab" data-tab="analysis">Analysis</div>
+            <div class="tab" data-tab="testing">Testing</div>
+            <div class="tab" data-tab="ai">AI Interface</div>
+        </div>
+        
+        <div class="tab-content active" id="import-tab">
+            <div class="panel">
+                <h2>Import Code</h2>
+                <p>Enter or paste JavaScript code to analyze and store in the system:</p>
+                <textarea id="code-input" class="code-input" placeholder="// Paste your JavaScript code here"></textarea>
+                <div>
+                    <input type="text" id="source-name" placeholder="Source name" style="padding: 8px; margin-top: 10px;">
+                    <button id="analyze-btn">Analyze & Import</button>
+                    <button id="clear-db-btn">Clear Database</button>
+                </div>
+                
+                <div class="progress-bar" id="import-progress" style="display: none;">
+                    <div class="progress-bar-fill" id="import-progress-fill" style="width: 0%;"></div>
+                    <div class="progress-text" id="import-progress-text">0%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="analysis-tab">
+            <div class="panel">
+                <h2>Code Analysis</h2>
+                <button id="run-clustering-btn">Run Clustering</button>
+                <button id="view-units-btn">View All Units</button>
+                <button id="view-clusters-btn">View Clusters</button>
+                
+                <div class="progress-bar" id="analysis-progress" style="display: none;">
+                    <div class="progress-bar-fill" id="analysis-progress-fill" style="width: 0%;"></div>
+                    <div class="progress-text" id="analysis-progress-text">0%</div>
+                </div>
+                
+                <div id="analysis-results" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="testing-tab">
+            <div class="panel">
+                <h2>Testing</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="unit-select" style="flex-grow: 1; padding: 8px;">
+                        <option value="">Select a unit to test</option>
+                    </select>
+                    <button id="run-tests-btn">Run Tests</button>
+                </div>
+                
+                <div>
+                    <h3>Add New Test</h3>
+                    <textarea id="test-code-input" class="code-input" style="height: 150px;" placeholder="// Write test code here"></textarea>
+                    <button id="add-test-btn">Add Test</button>
+                </div>
+                
+                <div id="test-results" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="ai-tab">
+            <div class="panel">
+                <h2>AI Interface</h2>
+                <p>This panel allows AI agents to interact with the code components.</p>
+                
+                <div>
+                    <h3>Manual AI Command</h3>
+                    <textarea id="ai-command-input" class="code-input" style="height: 150px;" placeholder='// Enter JSON command, e.g.: {"command": "getUnit", "id": "func_example_1"}
+'></textarea>
+                    <button id="execute-command-btn">Execute Command</button>
+                </div>
+                
+                <div>
+                    <h3>Pending Updates</h3>
+                    <div id="pending-updates"></div>
+                </div>
+                
+                <div id="ai-results" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Log</h2>
+            <div class="log-container" id="log-container"></div>
+        </div>
+    </div>
+    
+    <script type="module" src="main.js"></script>
+</body>
+</html>
