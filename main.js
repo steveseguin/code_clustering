@@ -428,15 +428,28 @@ function updatePendingUpdatesDisplay() {
     html += '<table style="width: 100%; border-collapse: collapse;">';
     html += '<tr><th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Unit ID</th><th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Proposed At</th><th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Actions</th></tr>';
     
-    pendingUpdates.forEach((update, unitId) => {
-        html += `<tr>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${unitId}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${new Date(update.proposedAt).toLocaleString()}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd;">
-                <button onclick="window.applyPendingUpdate('${unitId}')">Apply</button>
-                <button onclick="window.rejectPendingUpdate('${unitId}')">Reject</button>
-            </td>
-        </tr>`;
+    pendingUpdates.forEach((update, key) => { // Changed unitId to key
+        const proposedAtDate = new Date(update.proposedAt).toLocaleString();
+        if (update.type === 'plan') {
+            html += `<tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">Plan: ${update.planId}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${proposedAtDate}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">
+                    <button onclick="window.viewPlanInConsole('${update.planId}')">View Plan (Console)</button>
+                    <button onclick="window.rejectPlan('${update.planId}')">Reject Plan</button>
+                </td>
+            </tr>`;
+        } else { // This is a single update (type 'single_update' or undefined)
+            const unitId = key; // For single updates, the key from the map is the unitId
+            html += `<tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">Unit ID: ${unitId}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${proposedAtDate}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">
+                    <button onclick="window.applyPendingUpdate('${unitId}')">Apply</button>
+                    <button onclick="window.rejectPendingUpdate('${unitId}')">Reject</button>
+                </td>
+            </tr>`;
+        }
     });
     
     html += '</table>';

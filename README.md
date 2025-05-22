@@ -34,6 +34,108 @@ Here's what the code does:
    - Enables AI to propose modifications to specific code units
    - Provides mechanisms for reviewing and applying AI-suggested changes
 
+The following commands are available through the AI Interface (e.g., via the "Manual AI Command" input in the UI or programmatically):
+
+#### `proposePlan`
+
+Allows the AI to propose a multi-step plan of changes, which can include creating new code units or updating existing ones. This is useful for more complex refactoring tasks or feature additions that involve multiple components.
+
+**JSON Structure:**
+```json
+{
+  "command": "proposePlan",
+  "planId": "optional_plan_id",
+  "description": "Description of the overall plan (e.g., Refactor utility functions into a new module)",
+  "plan": [
+    {
+      "action": "createUnit",
+      "details": { 
+        "name": "newHelperFunction", 
+        "code": "export function newHelperFunction(data) { /* ... */ }", 
+        "tests": "assert(newHelperFunction({}) === undefined, 'Test newHelperFunction');", 
+        "description": "A new helper function for processing data." 
+      }
+    },
+    {
+      "action": "updateUnit",
+      "details": { 
+        "id": "existingUnitId123", 
+        "newCode": "export function existingUtil(arg1, arg2) { /* updated logic */ }", 
+        "newTests": "assert(existingUtil(1,2) === 3, 'Test updated existingUtil');", 
+        "description": "Update existingUtil to handle new arguments." 
+      }
+    }
+  ]
+}
+```
+**Note:** Currently, these plans are stored internally in the `pendingUpdates` map. The UI for reviewing and approving these multi-step plans is pending due to limitations encountered in modifying the main UI script (`main.js`) to support this complex interaction. Plan details can be viewed by inspecting the `pendingUpdates` map via the browser console if needed.
+
+#### `importFromGithub`
+
+Allows importing code directly from public GitHub repositories, or private repositories if a Personal Access Token (PAT) with appropriate permissions is provided.
+
+**Usage:** Submit a JSON command via the "Manual AI Command" input in the "AI Interface" tab.
+
+**JSON Structure:**
+```json
+{
+  "command": "importFromGithub",
+  "repoUrl": "https://github.com/owner/repo",
+  "filePath": "optional/path/to/file_or_directory_in_repo.js",
+  "pat": "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" 
+}
+```
+- If `filePath` points to a directory, the system will attempt to import all `.js` files from that directory (non-recursively).
+- If `filePath` is omitted, it attempts to import `.js` files from the root of the repository.
+- The `pat` is optional and should be used for accessing private repositories or to avoid rate limits on public repositories.
+
+#### `findUnits` (Enhanced)
+
+The `findUnits` command has been enhanced to support structured queries for more precise searching, in addition to its original simple string search capability.
+
+**General Structured Query JSON Structure:**
+```json
+{
+  "command": "findUnits",
+  "query": {
+    "criterion1": "value1",
+    "criterion2": "value2"
+  }
+}
+```
+If `query` is a string, it performs a case-insensitive search on unit names and a case-sensitive search on unit code (backward compatible).
+
+**Supported Criteria Fields for Structured Queries:**
+
+*   `id` (String): Find a unit by its exact ID.
+*   `nameContains` (String): Unit name contains the given string (case-insensitive).
+*   `codeContains` (String): Unit's code content contains the given string (case-sensitive).
+*   `descriptionContains` (String): Unit's metadata description contains the given string (case-insensitive).
+*   `ofType` (String): Unit's `type` matches (e.g., "function", "class", "export", "import").
+*   `memberOfCluster` (String): Unit's `clusterId` matches the given cluster ID.
+*   `dependsOn` (String): Unit ID or Name that the current unit must depend on (statically or dynamically).
+*   `dependencyOf` (String): Unit ID or Name for which the current unit is a dependency (statically or dynamically).
+*   `hasTests` (Boolean): Filters units based on the presence (`true`) or absence (`false`) of associated tests in `unit.metadata.tests`.
+*   `originalSource` (String): Unit's `originalSource` field (often the file path or source identifier) exactly matches.
+
+**Example Structured Queries:**
+
+1.  Find all functions with "Util" in their name:
+    ```json
+    {
+      "command": "findUnits",
+      "query": { "nameContains": "Util", "ofType": "function" }
+    }
+    ```
+
+2.  Find units that depend on a unit named "MainHelper" and do not have tests:
+    ```json
+    {
+      "command": "findUnits",
+      "query": { "dependsOn": "MainHelper", "hasTests": false }
+    }
+    ```
+
 ## Technical Implementation Details
 
 - **Pure Browser Environment**: Everything runs client-side using only vanilla JavaScript and browser APIs
