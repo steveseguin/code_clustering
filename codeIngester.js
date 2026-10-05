@@ -1,34 +1,7 @@
 import { putUnitsChunked } from './db.js';
-import { runInWorker } from './workerUtil.js';
+import { createWorkerFromFile } from './workerUtil.js';
 
-// Helper function to generate a content string for the static analyzer worker
-function getStaticAnalyzerWorkerCode() {
-    return `
-        // Static analyzer worker code
-        ${findMatchingBracket.toString()}
-        ${extractFunction.toString()}
-        ${analyzeCode.toString()}
-
-        self.onmessage = (event) => {
-            const { codeChunk, lineOffset, originalSource } = event.data;
-            const result = analyzeCode(codeChunk, lineOffset);
-            
-            // Set the original source for all units
-            result.units.forEach(unit => {
-                unit.originalSource = originalSource || 'unknown';
-            });
-            
-            // Report progress
-            self.postMessage({ 
-                type: 'progress', 
-                processedLines: (codeChunk.match(/\\n/g) || []).length + 1 
-            });
-
-            // Send results back
-            self.postMessage({ type: 'complete', units: result.units, dependencies: result.dependencies });
-        };
-    `;
-}
+const analyzerWorker = createWorkerFromFile(new URL('./staticAnalyzerWorker.js', import.meta.url));
 
 // Process code in chunks using web workers
 async function processCodeChunks(sourceCode, originalSource, chunkSize = 10000, onProgress) {
@@ -52,18 +25,12 @@ async function processCodeChunks(sourceCode, originalSource, chunkSize = 10000, 
         const chunk = chunks[i];
         
         try {
-            const workerCode = getStaticAnalyzerWorkerCode();
-            const result = await runInWorker(workerCode, {
+            const result = await analyzerWorker.run({
                 codeChunk: chunk.code,
                 lineOffset: chunk.lineOffset,
                 originalSource
-            });
-            
-            if (result.type === 'complete') {
-                allUnits.push(...result.units);
-                allDependencies.push(...result.dependencies);
-            } else if (result.type === 'progress') {
-                processedLines += result.processedLines;
+            }, (progress) => {
+                processedLines += progress.processedLines;
                 if (onProgress) {
                     onProgress({
                         processedLines,
@@ -72,9 +39,13 @@ async function processCodeChunks(sourceCode, originalSource, chunkSize = 10000, 
                         totalChunks: chunks.length
                     });
                 }
-            }
+            });
+
+            allUnits.push(...result.units);
+            allDependencies.push(...result.dependencies);
         } catch (error) {
             console.error(`Error processing chunk ${i}:`, error);
+            throw error;
         }
     }
     
