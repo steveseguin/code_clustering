@@ -1,41 +1,73 @@
-function runInWorker(workerCodeString, data) {
+// Progress messages are notifications; only the final response settles the job.
+function runWorker(worker, data, onProgress, cleanup = () => {}) {
     return new Promise((resolve, reject) => {
-        const blob = new Blob([workerCodeString], { type: 'application/javascript' });
-        const worker = new Worker(URL.createObjectURL(blob));
+        let settled = false;
+        const finish = () => {
+            settled = true;
+            worker.terminate();
+            cleanup();
+        };
 
         worker.onmessage = (event) => {
+            if (settled) return;
+            if (event.data && event.data.type === 'progress') {
+                try {
+                    if (onProgress) onProgress(event.data);
+                } catch (error) {
+                    finish();
+                    reject(error);
+                }
+                return;
+            }
+            finish();
             resolve(event.data);
-            worker.terminate(); // Terminate worker after use
         };
 
         worker.onerror = (event) => {
-            reject(event.error);
-            worker.terminate(); // Terminate worker on error
+            if (settled) return;
+            finish();
+            reject(event.error || new Error(event.message || 'Worker failed'));
         };
 
-        worker.postMessage(data); // Send data to the worker
+        worker.onmessageerror = () => {
+            if (settled) return;
+            finish();
+            reject(new Error('Worker response could not be decoded'));
+        };
+
+        try {
+            worker.postMessage(data);
+        } catch (error) {
+            finish();
+            reject(error);
+        }
     });
+}
+
+function runInWorker(workerCodeString, data, onProgress) {
+    const blob = new Blob([workerCodeString], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    let worker;
+    try {
+        worker = new Worker(url);
+    } catch (error) {
+        URL.revokeObjectURL(url);
+        return Promise.reject(error);
+    }
+    return runWorker(worker, data, onProgress, () => URL.revokeObjectURL(url));
 }
 
 // Helper function to create a reusable worker from a file
 function createWorkerFromFile(workerPath) {
     return {
-        run: function(data) {
-            return new Promise((resolve, reject) => {
-                const worker = new Worker(workerPath);
-                
-                worker.onmessage = (event) => {
-                    resolve(event.data);
-                    worker.terminate();
-                };
-                
-                worker.onerror = (event) => {
-                    reject(event.error);
-                    worker.terminate();
-                };
-                
-                worker.postMessage(data);
-            });
+        run: function(data, onProgress) {
+            let worker;
+            try {
+                worker = new Worker(workerPath);
+            } catch (error) {
+                return Promise.reject(error);
+            }
+            return runWorker(worker, data, onProgress);
         }
     };
 }
