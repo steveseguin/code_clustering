@@ -22,14 +22,14 @@ async function updateDynamicRelationships() {
     }
     
     // Process the relationships and update units
-    const updatedUnits = [];
+    const updatedUnits = new Map();
     
     for (const [key, frequency] of callFrequencyMap.entries()) {
         const [sourceId, targetId] = key.split('->');
         
         try {
-            // Get the source unit
-            const sourceUnit = await getUnit(sourceId);
+            // Reuse one copy per source so later relationships cannot overwrite earlier ones.
+            const sourceUnit = updatedUnits.get(sourceId) || await getUnit(sourceId);
             if (!sourceUnit) continue;
             
             // Check if this relationship already exists
@@ -50,21 +50,21 @@ async function updateDynamicRelationships() {
                 });
             }
             
-            updatedUnits.push(sourceUnit);
+            updatedUnits.set(sourceId, sourceUnit);
         } catch (error) {
             console.error(`Error updating relationship ${key}:`, error);
         }
     }
     
     // Store the updated units in batches
-    if (updatedUnits.length > 0) {
-        await putUnitsChunked(updatedUnits);
+    if (updatedUnits.size > 0) {
+        await putUnitsChunked([...updatedUnits.values()]);
     }
     
     // Clear the trace log after processing
     clearTraceLog();
     
-    return { updated: updatedUnits.length };
+    return { updated: updatedUnits.size };
 }
 
 // Start periodic updates
